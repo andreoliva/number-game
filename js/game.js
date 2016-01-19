@@ -1,18 +1,27 @@
-var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create: create, update: update });
-var enemy;
+var game = new Phaser.Game(960, 540, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+var velocity = 3500;
+var enemies = [];
+var current = 0;
 
 function preload() {
-	game.load.image('floor', 'assets/floor.png');
+	game.load.image('tile', 'assets/tile.png');
 	game.load.image('enemy', 'assets/enemy.png');
 }
 
 function create() {
-	game.add.sprite(0, 0, 'floor');
-	enemy = game.add.sprite(-150, -150, 'enemy');
-	enemy.anchor.x = enemy.anchor.y = 0.5;
-	enemy.inputEnabled = true;
-	enemy.events.onInputDown.add(enemyClick, this);
-	startTravel();
+	game.add.tileSprite(0, 0, 960, 540, 'tile');
+	for (var i = 6; i >= 0; i--){
+		enemies[i] = game.add.sprite(-150, -150, 'enemy');
+		enemies[i].anchor.x = enemies[i].anchor.y = 0.5;
+		enemies[i].inputEnabled = true;
+		enemies[i].events.onInputDown.add(enemyClick, this);
+		enemies[i].number = i;
+		enemies[i].correct = false;
+		var txt = this.game.add.text(0, 0, i, {font:"45px Arial", fill:"#ffffff", fontWeight:"bold", boundsAlignH:"center", boundsAlignV:"middle"});
+		txt.setTextBounds(-enemies[i].width/2, -enemies[i].height/2, enemies[i].width, enemies[i].height);
+		enemies[i].addChild(txt);
+		startTravel(enemies[i]);
+	}
 }
 
 function update() {
@@ -20,20 +29,40 @@ function update() {
 }
 
 function enemyClick(target){
-	if (target.movTween.isPaused){
-		target.movTween.resume();
+	if (target.number == current){
+		target.movTween.pause();
+		target.getChildAt(0).addColor('#00ff00', 0);
+		target.events.onInputDown.remove(enemyClick, this);
+		target.correct = true;
+		game.world.addChildAt(target, 1);
+		velocity -= 500;
+		current++;
 	} else {
 		target.movTween.pause();
+		target.getChildAt(0).addColor('#ff0000', 0);
+		velocity += 300;
+		setTimeout(function(){
+			current = 0;
+			target.movTween.resume();
+			target.getChildAt(0).addColor('#ffffff', 0);
+			for (var i = 0; i < enemies.length; i++){
+				if (enemies[i].correct){
+					enemies[i].correct = false;
+					enemies[i].movTween.resume();
+					enemies[i].events.onInputDown.add(enemyClick, this);
+					enemies[i].getChildAt(0).addColor('#ffffff', 0);
+				}
+			}
+		}, 500);
 	}
 }
 
-function startTravel() {
+function startTravel(enemy) {
 	setTimeout(function(){
-		var orig = generateOrigPoint(enemy);
-		var dest = generateDestPoint(enemy, orig);
-		var anchorOrig = generateAnchor(orig.loc);
-		var anchorDest = generateAnchor(dest.loc);
-		var time = getRandomInt(2000, 3500);
+		var orig = generateLocation(enemy);
+		var dest = generateLocation(enemy);
+		var anchorOrig = generatePointInScreen();
+		var anchorDest = generatePointInScreen();
 		var pointsTo = {
 			x: [orig.x, anchorOrig.x, anchorDest.x, dest.x],
 			y: [orig.y, anchorOrig.y, anchorDest.y, dest.y]
@@ -42,28 +71,20 @@ function startTravel() {
 		enemy.x = orig.x;
 		enemy.y = orig.y;
 		enemy.movTween = game.add.tween(enemy)
-						.to(pointsTo, time, Phaser.Easing.Quadratic.InOut, true)
+						.to(pointsTo, velocity, Phaser.Easing.Quadratic.InOut, true)
 						.interpolation(function(v, k){return Phaser.Math.bezierInterpolation(v, k)});
-		enemy.movTween.onComplete.add(startTravel, this);
+		enemy.movTween.onComplete.add(function(){ startTravel(enemy) }, this);
 	}, 200);
 }
 
-function generateOrigPoint(target){
+function generateLocation(target){
 	var point = {x:0, y:0, loc:0};
 	point.loc = Math.floor(Math.random() * 4);
-	return generatePoint(point, target, point.loc);
+	return generatePointWithLocation(point, target, point.loc);
 }
 
-function generateDestPoint(target, orig){
-	var point = {x:0, y:0, loc:0};
-	do {
-		point.loc = Math.floor(Math.random() * 4);
-	} while (point.loc == orig.loc);
-	return generatePoint(point, target, point.loc);
-}
-
-function generatePoint(point, target, loc){
-	if (point.loc <= 1){
+function generatePointWithLocation(point, target, loc){
+	if (loc <= 1){
 		point.x = getRandomInt(target.width, game.width - target.width);
 		point.y = (point.loc == 0)? -target.height : game.height + target.height;
 	} else {
@@ -73,15 +94,10 @@ function generatePoint(point, target, loc){
 	return point;
 }
 
-function generateAnchor(loc){
+function generatePointInScreen(){
 	var point = {x:0, y:0};
-	if (loc <= 1){
-		point.x = getRandomInt(0, game.width);
-		point.y = game.height / 2;
-	} else {
-		point.x = game.width / 2;
-		point.y = getRandomInt(0, game.height);
-	}
+	point.x = getRandomInt(0, game.width);
+	point.y = getRandomInt(0, game.height);
 	return point;
 }
 
