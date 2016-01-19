@@ -31,13 +31,21 @@ function startTravel() {
 	setTimeout(function(){
 		var orig = generateOrigPoint(enemy);
 		var dest = generateDestPoint(enemy, orig);
-		var time = getRandomInt(2000, 2500);
+		var anchorOrig = generateAnchor(orig.loc);
+		var anchorDest = generateAnchor(dest.loc);
+		var time = getRandomInt(2000, 3500);
+		var pointsTo = {
+			x: [orig.x, anchorOrig.x, anchorDest.x, dest.x],
+			y: [orig.y, anchorOrig.y, anchorDest.y, dest.y]
+		}
+
 		enemy.x = orig.x;
 		enemy.y = orig.y;
-
-		enemy.movTween = game.add.tween(enemy).to({x: dest.x, y: dest.y}, time, Phaser.Easing.None, true);
+		enemy.movTween = game.add.tween(enemy)
+						.to(pointsTo, time, Phaser.Easing.Quadratic.InOut, true)
+						.interpolation(function(v, k){return Phaser.Math.bezierInterpolation(v, k)});
 		enemy.movTween.onComplete.add(startTravel, this);
-	}, 500);
+	}, 200);
 }
 
 function generateOrigPoint(target){
@@ -47,7 +55,7 @@ function generateOrigPoint(target){
 }
 
 function generateDestPoint(target, orig){
-	var point = {x:0, y:0, loc:0, locName:null};
+	var point = {x:0, y:0, loc:0};
 	do {
 		point.loc = Math.floor(Math.random() * 4);
 	} while (point.loc == orig.loc);
@@ -61,6 +69,18 @@ function generatePoint(point, target, loc){
 	} else {
 		point.x = (point.loc == 2)? -target.width : game.width + target.width;
 		point.y = getRandomInt(target.height, game.height - target.height);
+	}
+	return point;
+}
+
+function generateAnchor(loc){
+	var point = {x:0, y:0};
+	if (loc <= 1){
+		point.x = getRandomInt(0, game.width);
+		point.y = game.height / 2;
+	} else {
+		point.x = game.width / 2;
+		point.y = getRandomInt(0, game.height);
 	}
 	return point;
 }
