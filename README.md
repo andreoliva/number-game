@@ -1,2 +1,2 @@
-# phaser-testing
-My tests of the Phaser framework.
+# number-game
+A test using the Phaser Framework
